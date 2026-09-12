@@ -1,0 +1,73 @@
+.header-actions {
+  align-items: center;
+}
+
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid #37627d;
+  border-radius: 999px;
+  background: #071d31;
+  color: #a7c5d7;
+  font-size: .7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sync-indicator::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.sync-indicator.synced {
+  color: #45e1ae;
+  border-color: #248f72;
+  background: #07392f;
+}
+
+.sync-indicator.error {
+  color: #ff7482;
+  border-color: #a84452;
+  background: #411d2a;
+}
+
+.sync-indicator.working {
+  color: #60d5ff;
+  border-color: #258cb4;
+  background: #07344c;
+}
+
+.sync-indicator.working::before {
+  animation: sync-pulse 1s ease-in-out infinite;
+}
+
+.sync-indicator.warn,
+.sync-indicator.conflict {
+  color: #ffc45c;
+  border-color: #a47a2c;
+  background: #3b2d14;
+}
+
+@keyframes sync-pulse {
+  50% {
+    opacity: .25;
+    transform: scale(.72);
+  }
+}
+
+@media (max-width: 760px) {
+  .header-actions .sync-indicator {
+    grid-column: 1 / -1;
+    justify-content: center;
+    justify-self: end;
+    min-height: 30px;
+    padding: 5px 10px;
+  }
+}

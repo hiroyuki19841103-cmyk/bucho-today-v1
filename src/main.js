@@ -3,6 +3,7 @@ import {buildTaskWorkbook,parseTaskWorkbook,WORKBOOK_MIME as TASK_MIME} from "./
 import {buildTodayWorkbook,parseTodayWorkbook,WORKBOOK_MIME as TODAY_MIME} from "./today-workbook.js";
 import "./app-config.js";
 import "./styles.css";
+import "./sync-status.css";
 
 const CONFIG=window.BUCHO_TODAY_CONFIG;
 const STORAGE_KEY="bucho-today-records-v1",BASE_KEY="bucho-today-base-v1",PATCH_KEY="bucho-today-task-patches-v1",DEVICE_KEY="bucho-today-device-v1",LOGIN_KEY="bucho-today-login-v1",SETTINGS_KEY="bucho-today-settings-v1";
@@ -54,9 +55,9 @@ function eligibleTasks(){return activeTasks().filter(t=>String(t.owner||"").trim
 document.querySelector("#app").innerHTML=`
 <main class="app-shell">
  <header class="topbar">
-  <div class="brand"><span class="brand-icon">🏢</span><div><h1>部門責任者 TODAY <em>V1</em></h1><p>現場を動かし、未来をつくる｜今日という一日を、確かな前進に</p></div></div>
+  <div class="brand"><span class="brand-icon">🏢</span><div><h1>部門責任者 TODAY <em>V1.1</em></h1><p>現場を動かし、未来をつくる｜今日という一日を、確かな前進に</p></div></div>
   <div class="date-nav"><button id="prevDay" aria-label="前日">‹</button><div><strong id="dateLabel"></strong><small>やるべきことを見える化し、現場が回る一日をつくる</small></div><button id="calendarBtn" aria-label="今日">▣</button><button id="nextDay" aria-label="翌日">›</button></div>
-  <div class="header-actions"><button id="rebuildBtn">↻ 再構成</button><button id="confirmBtn" class="primary">✓ 今日を確定</button><button id="syncBtn">↻ 同期</button><button id="loginBtn">Microsoftログイン</button><button id="settingsBtn" aria-label="設定">⚙</button></div>
+  <div class="header-actions"><button id="rebuildBtn">↻ 再構成</button><button id="confirmBtn" class="primary">✓ 今日を確定</button><span id="syncState" class="sync-indicator local" role="status" aria-live="polite">端末内保存</span><button id="syncBtn">↻ 同期</button><button id="loginBtn">Microsoftログイン</button><button id="settingsBtn" aria-label="設定">⚙</button></div>
  </header>
  <section class="metrics" id="metrics"></section>
  <section class="dashboard">
@@ -68,7 +69,7 @@ document.querySelector("#app").innerHTML=`
   </section>
  </section>
  <footer class="today-footer"><label>✎ 割込みメモ<input id="interruptMemo" placeholder="気づいたことを、すぐにメモ…"></label><button id="carryBtn">▤ 持越し候補 <b id="carryCount">0</b><small>今日やり切れないものを整理</small></button><button id="closeDayBtn">☾ 今日を閉じる<small>1日の振り返りを行います</small></button></footer>
- <div class="connection-line"><span id="syncState">端末内保存</span><span id="accountInfo">Microsoft未接続</span><button id="todayExcelBtn" disabled>TODAY Master</button><button id="taskExcelBtn" disabled>TASK CONTROL Master</button><button id="diagnosticBtn">診断情報</button></div>
+ <div class="connection-line"><span id="accountInfo">Microsoft未接続</span><button id="todayExcelBtn" disabled>TODAY Master</button><button id="taskExcelBtn" disabled>TASK CONTROL Master</button><button id="diagnosticBtn">診断情報</button></div>
 </main>
 <dialog id="planDialog"><form id="planForm"><div class="dialog-head"><div><small>TODAY PLAN</small><h2 id="planTitle">今日のタスク</h2></div><button type="button" data-close>×</button></div><p id="planSubtitle" class="dialog-subtitle"></p><div class="form-grid"><label>開始<input name="start" type="time" step="900" required></label><label>終了<input name="end" type="time" step="900" required></label><label>領域<select name="section">${SECTIONS.map(x=>`<option>${x}</option>`).join("")}</select></label><label>重点順位<select name="focusRank"><option value="0">重点外</option><option value="1">01</option><option value="2">02</option><option value="3">03</option></select></label><label>今日分<select name="todayDone"><option value="false">未完了</option><option value="true">今日分完了</option></select></label><label>タスク状態<select name="status">${STATUSES.map(x=>`<option>${x}</option>`).join("")}</select></label><label>進捗<input name="progress" type="number" min="0" max="100" step="5"></label><label>温度感<select name="priority">${TEMPS.map(x=>`<option>${x}</option>`).join("")}</select></label><label>期日<input name="dueDate" type="date"></label><label>次に触る日<input name="nextTouchDate" type="date"></label><label>想定所要時間（h）<input name="expectedHours" type="number" min="0" max="10000" step="0.25"></label><label class="span-2">今日のメモ<textarea name="notes" rows="3"></textarea></label></div><div class="dialog-actions"><button type="button" id="removePlanBtn" class="danger">今日から外す</button><span></span><button type="button" data-close>キャンセル</button><button type="submit" class="primary">保存して閉じる</button></div></form></dialog>
 <dialog id="candidateDialog"><div class="dialog-head"><div><small>TASK CANDIDATES</small><h2>今日へ追加</h2></div><button type="button" data-close>×</button></div><div id="candidateList" class="candidate-list"></div></dialog>
@@ -141,7 +142,7 @@ async function sync({automatic=false}={}){if(!state.account||state.busy)return f
     const todayRemote=await fetchFile(tok,CONFIG.TODAY_FILE_NAME,parseTodayWorkbook),result=mergeToday(todayRemote.records,!automatic);if(result.conflicts.length&&automatic)throw Object.assign(new Error(`TODAY同期競合 ${result.conflicts.length}件`),{errorCode:"TODAY_CONFLICT"});const template=todayRemote.bytes||await(await fetch(new URL("./BUCHO_TODAY_Master.xlsx",document.baseURI))).arrayBuffer(),bytes=await buildTodayWorkbook(Object.values(result.merged),template),uploaded=await uploadFile(tok,CONFIG.TODAY_FILE_NAME,bytes,todayRemote,TODAY_MIME);state.records=result.merged;state.base=structuredClone(result.merged);state.todayRemote={...todayRemote,id:uploaded.id||todayRemote.id,eTag:uploaded.eTag||todayRemote.eTag,webUrl:uploaded.webUrl||todayRemote.webUrl};await fetchEvents(tok);store();setSync("synced",`同期成功｜${tokyoTime()}`);state.lastError=null;render();return true;
   }catch(e){state.lastError={code:e.errorCode||e.name,message:String(e.message||e)};setSync("error",`同期失敗｜${state.lastError.code}`);if(!automatic)alert(`${state.lastError.message}\n\nExcel Masterを閉じ、同じMicrosoftアカウントで再度お試しください。`);return false;}finally{state.busy=false;$("syncBtn").disabled=false;}}
 function scheduleSync(delay=CONFIG.AUTO_SYNC_DELAY_MS||6000,message=""){clearTimeout(state.syncTimer);setSync("local",state.account?`${message||"変更を端末内保存"}｜自動同期待ち`:message||"端末内保存");if(state.account)state.syncTimer=setTimeout(()=>sync({automatic:true}),delay);}
-function setSync(cls,text){$("syncState").className=cls;$("syncState").textContent=text;}
+function setSync(cls,text){const indicator=$("syncState"),button=$("syncBtn");if(indicator){indicator.className=`sync-indicator ${cls}`;indicator.textContent=text;}if(button){button.textContent=cls==="working"?"↻ 同期中…":"↻ 同期";button.setAttribute("aria-busy",String(cls==="working"));}}
 function updateAccount(){$("loginBtn").textContent=state.account?"アカウント切替":"Microsoftログイン";$("accountInfo").textContent=state.account?(state.account.username||state.account.name||"Microsoft接続済"):"Microsoft未接続";$("taskExcelBtn").disabled=!state.taskRemote?.id;$("todayExcelBtn").disabled=!state.todayRemote?.id;}
 async function openExcel(which){const remote=which==="task"?state.taskRemote:state.todayRemote;if(!remote?.id)return;const popup=window.open("about:blank","_blank");try{const tok=await token(),response=await fetch(`https://graph.microsoft.com/v1.0/me/drive/items/${encodeURIComponent(remote.id)}/preview`,{method:"POST",headers:{Authorization:`Bearer ${tok}`,"Content-Type":"application/json"},body:"{}"}),payload=await response.json();if(!response.ok)throw graphError(response,payload);popup.location.replace(payload.getUrl);}catch(e){popup?.close();alert(e.message);}}
 
