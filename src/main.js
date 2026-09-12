@@ -55,7 +55,7 @@ function eligibleTasks(){return activeTasks().filter(t=>String(t.owner||"").trim
 document.querySelector("#app").innerHTML=`
 <main class="app-shell">
  <header class="topbar">
-  <div class="brand"><span class="brand-icon">🏢</span><div><h1>部門責任者 TODAY <em>V1.1</em></h1><p>現場を動かし、未来をつくる｜今日という一日を、確かな前進に</p></div></div>
+  <div class="brand"><span class="brand-icon">🏢</span><div><h1>AUTOMATE TODAY <em>V1.2</em></h1><p>現場を動かし、未来をつくる｜今日という一日を、確かな前進に</p></div></div>
   <div class="date-nav"><button id="prevDay" aria-label="前日">‹</button><div><strong id="dateLabel"></strong><small>やるべきことを見える化し、現場が回る一日をつくる</small></div><button id="calendarBtn" aria-label="今日">▣</button><button id="nextDay" aria-label="翌日">›</button></div>
   <div class="header-actions"><button id="rebuildBtn">↻ 再構成</button><button id="confirmBtn" class="primary">✓ 今日を確定</button><span id="syncState" class="sync-indicator local" role="status" aria-live="polite">端末内保存</span><button id="syncBtn">↻ 同期</button><button id="loginBtn">Microsoftログイン</button><button id="settingsBtn" aria-label="設定">⚙</button></div>
  </header>
