@@ -64,9 +64,9 @@
 
 .now-line {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
   z-index: 8;
   pointer-events: none;
   background: #ff5f72;
@@ -76,8 +76,8 @@
 .now-line::before {
   content: "";
   position: absolute;
-  left: -5px;
-  top: -4px;
+  left: -4px;
+  top: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -87,8 +87,8 @@
 
 .now-line span {
   position: absolute;
-  right: 4px;
-  top: -24px;
+  left: 7px;
+  top: 5px;
   padding: 2px 7px;
   border: 1px solid #ff8290;
   border-radius: 4px;
