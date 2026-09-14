@@ -8,7 +8,8 @@ const HEADERS = [
   "TaskID", "ParentID", "RootID", "SortOrder", "分類", "タスク名", "状態", "優先度",
   "担当", "開始日", "期日", "進捗率", "次の一手", "阻害要因", "メモ", "リンクURL",
   "削除", "作成日時", "更新日時", "更新元", "版", "想定所要時間（h）",
-  "次に触る日", "今日への配置", "作業分割", "最小作業単位（h）"
+  "次に触る日", "今日への配置", "作業分割", "最小作業単位（h）",
+  "フォロー", "フォロー担当", "次回フォロー日", "フォロー想定時間（h）", "フォロー内容"
 ];
 
 function requireJsZip() {
@@ -44,6 +45,10 @@ function normalizeTask(task = {}) {
     todayPlacement: ["自動判定","必ず入れる","入れない"].includes(task.todayPlacement) ? task.todayPlacement : "自動判定",
     workSplit: ["分割可","分割不可"].includes(task.workSplit) ? task.workSplit : "分割不可",
     minimumBlockMinutes: Math.max(15, Math.min(600000, Math.round((Number(task.minimumBlockMinutes) || 30) / 15) * 15)),
+    followRequired: task.followRequired === true || /^(TRUE|1|必要)$/i.test(String(task.followRequired || "")),
+    followOwner: String(task.followOwner || ""), nextFollowDate: String(task.nextFollowDate || "").slice(0, 10),
+    followMinutes: Math.max(0, Math.min(600000, Math.round((Number(task.followMinutes) || 0) / 15) * 15)),
+    followNotes: String(task.followNotes || ""),
     nextAction: String(task.nextAction || ""), blocker: String(task.blocker || ""), notes: String(task.notes || ""), linkUrl: String(task.linkUrl || ""),
     deleted: Boolean(task.deleted), createdAt: String(task.createdAt || ""), updatedAt: String(task.updatedAt || ""),
     updatedBy: String(task.updatedBy || ""), revision: Math.max(1, Number.parseInt(task.revision, 10) || 1)
@@ -57,7 +62,7 @@ function sortedTasks(tasks) {
 function rowValues(t) {
   return [t.id,t.parentId,t.rootId,t.sortOrder,t.category,t.title,t.status,t.priority,t.owner,t.startDate,t.dueDate,t.progress,
     t.nextAction,t.blocker,t.notes,t.linkUrl,t.deleted ? "TRUE" : "FALSE",t.createdAt,t.updatedAt,t.updatedBy,t.revision,t.expectedMinutes / 60,
-    t.nextTouchDate,t.todayPlacement,t.workSplit,t.minimumBlockMinutes / 60];
+    t.nextTouchDate,t.todayPlacement,t.workSplit,t.minimumBlockMinutes / 60,t.followRequired ? "TRUE" : "FALSE",t.followOwner,t.nextFollowDate,t.followMinutes / 60,t.followNotes];
 }
 
 function sheetXml(tasks, tableRelationshipId) {
@@ -71,15 +76,15 @@ function sheetXml(tasks, tableRelationshipId) {
   const lastRow = Math.max(2, records.length + 1);
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<dimension ref="A1:Z${lastRow}"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
-<sheetFormatPr defaultRowHeight="18"/><cols><col min="1" max="3" width="24" customWidth="1"/><col min="4" max="4" width="10" customWidth="1"/><col min="5" max="5" width="14" customWidth="1"/><col min="6" max="6" width="36" customWidth="1"/><col min="7" max="9" width="14" customWidth="1"/><col min="10" max="12" width="12" customWidth="1"/><col min="13" max="16" width="34" customWidth="1"/><col min="17" max="17" width="8" customWidth="1"/><col min="18" max="20" width="24" customWidth="1"/><col min="21" max="21" width="8" customWidth="1"/><col min="22" max="22" width="18" customWidth="1"/><col min="23" max="23" width="14" customWidth="1"/><col min="24" max="25" width="16" customWidth="1"/><col min="26" max="26" width="18" customWidth="1"/></cols>
+<dimension ref="A1:AE${lastRow}"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="18"/><cols><col min="1" max="3" width="24" customWidth="1"/><col min="4" max="4" width="10" customWidth="1"/><col min="5" max="5" width="14" customWidth="1"/><col min="6" max="6" width="36" customWidth="1"/><col min="7" max="9" width="14" customWidth="1"/><col min="10" max="12" width="12" customWidth="1"/><col min="13" max="16" width="34" customWidth="1"/><col min="17" max="17" width="8" customWidth="1"/><col min="18" max="20" width="24" customWidth="1"/><col min="21" max="21" width="8" customWidth="1"/><col min="22" max="22" width="18" customWidth="1"/><col min="23" max="23" width="14" customWidth="1"/><col min="24" max="25" width="16" customWidth="1"/><col min="26" max="26" width="18" customWidth="1"/><col min="27" max="27" width="12" customWidth="1"/><col min="28" max="28" width="16" customWidth="1"/><col min="29" max="29" width="16" customWidth="1"/><col min="30" max="30" width="22" customWidth="1"/><col min="31" max="31" width="36" customWidth="1"/></cols>
 <sheetData>${rows.join("")}</sheetData><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.2" footer="0.2"/><tableParts count="1"><tablePart r:id="${escapeXml(tableRelationshipId)}"/></tableParts></worksheet>`;
 }
 
 function tableXml(count) {
   const lastRow = Math.max(2, count + 1);
   const cols = HEADERS.map((h,i)=>`<tableColumn id="${i+1}" name="${escapeXml(h)}"/>`).join("");
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${WORKBOOK_TABLE_NAME}" displayName="${WORKBOOK_TABLE_NAME}" ref="A1:Z${lastRow}" headerRowCount="1" totalsRowCount="0" totalsRowShown="0"><autoFilter ref="A1:Z${lastRow}"/><tableColumns count="${HEADERS.length}">${cols}</tableColumns><tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="${WORKBOOK_TABLE_NAME}" displayName="${WORKBOOK_TABLE_NAME}" ref="A1:AE${lastRow}" headerRowCount="1" totalsRowCount="0" totalsRowShown="0"><autoFilter ref="A1:AE${lastRow}"/><tableColumns count="${HEADERS.length}">${cols}</tableColumns><tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>`;
 }
 
 function tableRelationshipId(xml) {
@@ -134,6 +139,7 @@ export async function parseTaskWorkbook(bytes) {
   };
   const expectedStoredAsHours = headerValue("V1") === "想定所要時間（h）";
   const minimumBlockStoredAsHours = headerValue("Z1") === "最小作業単位（h）";
+  const followStoredAsHours = headerValue("AD1") === "フォロー想定時間（h）";
   const tasks = [];
   [...doc.getElementsByTagName("row")].forEach(row => {
     if (Number(row.getAttribute("r") || 0) <= 1) return;
@@ -146,7 +152,7 @@ export async function parseTaskWorkbook(bytes) {
       if (index > 0 && index <= values.length) values[index-1] = cellValue(c,strings);
     });
     if (!values[0]) return;
-    tasks.push(normalizeTask({id:values[0],parentId:values[1],rootId:values[2],sortOrder:values[3],category:values[4],title:values[5],status:values[6],priority:values[7],owner:values[8],startDate:values[9],dueDate:values[10],progress:values[11],nextAction:values[12],blocker:values[13],notes:values[14],linkUrl:values[15],deleted:/^(TRUE|1)$/i.test(values[16]),createdAt:values[17],updatedAt:values[18],updatedBy:values[19],revision:values[20],expectedMinutes:(Number(values[21])||0)*(expectedStoredAsHours?60:1),nextTouchDate:values[22],todayPlacement:values[23],workSplit:values[24],minimumBlockMinutes:(Number(values[25])||0)*(minimumBlockStoredAsHours?60:1)}));
+    tasks.push(normalizeTask({id:values[0],parentId:values[1],rootId:values[2],sortOrder:values[3],category:values[4],title:values[5],status:values[6],priority:values[7],owner:values[8],startDate:values[9],dueDate:values[10],progress:values[11],nextAction:values[12],blocker:values[13],notes:values[14],linkUrl:values[15],deleted:/^(TRUE|1)$/i.test(values[16]),createdAt:values[17],updatedAt:values[18],updatedBy:values[19],revision:values[20],expectedMinutes:(Number(values[21])||0)*(expectedStoredAsHours?60:1),nextTouchDate:values[22],todayPlacement:values[23],workSplit:values[24],minimumBlockMinutes:(Number(values[25])||0)*(minimumBlockStoredAsHours?60:1),followRequired:values[26],followOwner:values[27],nextFollowDate:values[28],followMinutes:(Number(values[29])||0)*(followStoredAsHours?60:1),followNotes:values[30]}));
   });
   const tableFile = zip.file("xl/tables/table1.xml");
   const tableText = tableFile ? await tableFile.async("text") : "";

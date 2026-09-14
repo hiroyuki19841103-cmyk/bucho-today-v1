@@ -12,3 +12,6 @@
 
 /* V1.6 break-aware task bars */
 .gantt-bar>span{position:relative;z-index:3}.gantt-bar .bar-break{position:absolute;top:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;overflow:hidden;border-left:1px solid #f7cf61;border-right:1px solid #f7cf61;background:repeating-linear-gradient(135deg,#725c20 0,#725c20 6px,#9a7a22 6px,#9a7a22 12px);color:#fff0a8;font-style:normal;pointer-events:none}.gantt-bar .bar-break b{padding:1px 3px;border-radius:3px;background:#2c230dcc;font-size:.56rem;line-height:1;white-space:nowrap}
+
+/* V1.7 follow-up planning */
+.gantt-bar[title*="FOLLOW｜"]{background:linear-gradient(90deg,#15803d,#22c55e);border-color:#86efac}.gantt-task-label:has(strong:first-child){position:relative}.follow-plan-fields{border:1px solid #22c55e66;border-radius:10px;padding:12px;background:#14532d22}.follow-plan-fields legend{padding:0 6px;color:#86efac;font-weight:800}.follow-plan-fields label{display:flex;flex-direction:column;gap:5px}.follow-plan-fields small{color:#9bd6ae}.form-grid input:disabled,.form-grid select:disabled{opacity:.45;cursor:not-allowed}
